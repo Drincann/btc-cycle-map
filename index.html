@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BTC Cycle Map</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">BTC halving cycle map</p>
+          <h1>BTC 周期同坐标对比</h1>
+        </div>
+        <div class="controls" aria-label="图表控制">
+          <button class="seg active" data-scale="log" type="button">对数</button>
+          <button class="seg" data-scale="linear" type="button">普通</button>
+          <button class="seg" data-scale="relative" type="button">相同比例</button>
+        </div>
+      </header>
+
+      <section class="chart-panel">
+        <div class="chart-head">
+          <div>
+            <strong>减半日 = 第 0 天，价格归一化为 1</strong>
+            <span id="status">加载中</span>
+          </div>
+          <div id="legend" class="legend"></div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="chart" aria-label="BTC 周期对比图"></canvas>
+          <div id="tooltip" class="tooltip" hidden></div>
+        </div>
+      </section>
+
+      <section class="stats">
+        <h2>周期摘要</h2>
+        <div id="cards" class="cards"></div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
