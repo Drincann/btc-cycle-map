@@ -54,11 +54,11 @@ function chartBounds() {
 }
 
 function valueTransform(value) {
-  return state.scale === "log" || state.scale === "relative" ? Math.log10(Math.max(value, 0.05)) : value;
+  return state.scale === "log" ? Math.log10(Math.max(value, 0.05)) : value;
 }
 
 function valueInverse(value) {
-  return state.scale === "log" || state.scale === "relative" ? 10 ** value : value;
+  return state.scale === "log" ? 10 ** value : value;
 }
 
 function domain() {
@@ -72,8 +72,8 @@ function domain() {
   }
   const maxV = Math.max(2, ...values);
   const minV = Math.min(1, ...values);
-  const yMin = state.scale === "relative" ? 0.1 : state.scale === "log" ? Math.max(0.3, minV * 0.85) : 0;
-  const yMax = state.scale === "relative" ? 1.18 : maxV * 1.12;
+  const yMin = state.scale === "relative" ? 0 : state.scale === "log" ? Math.max(0.3, minV * 0.85) : 0;
+  const yMax = state.scale === "relative" ? 1.1 : maxV * 1.12;
   return {
     xMin: 0,
     xMax,
@@ -112,6 +112,22 @@ function pointFromSummary(summary, kind) {
     date: summary.troughDate,
     price: summary.troughPrice,
   };
+}
+
+function markerLabel(kind, point, cycle) {
+  if (state.scale !== "relative") {
+    return `${kind} ${fmtMultiple(point.normalized)}${kind === "低" && cycle.summary.troughStatus ? ` ${cycle.summary.troughStatus}` : ""}`;
+  }
+  const pct = Math.round(displayValue(point, cycle) * 100);
+  const status = kind === "低" && cycle.summary.troughStatus ? ` ${cycle.summary.troughStatus}` : "";
+  return `${kind} ${pct}% (${fmtMultiple(point.normalized)})${status}`;
+}
+
+function labelOffset(cycle, kind) {
+  const index = state.data.cycles.findIndex((item) => item.id === cycle.id);
+  if (state.scale !== "relative") return kind === "peak" ? -22 : 22;
+  if (kind === "peak") return [-44, -22, 0][Math.max(0, index)] ?? -22;
+  return [36, 18, 54][Math.max(0, index)] ?? 30;
 }
 
 function resizeCanvas() {
@@ -245,13 +261,12 @@ function drawCycleMarkers(cycle, bounds, d) {
   if (peak.days >= d.xMin && peak.days <= d.xMax && peak.normalized) {
     const pos = project(peak, bounds, d, cycle);
     drawStar(pos.x, pos.y, cycle.id === "cycle_2024" ? 11 : 9, 4, cycle.color);
-    drawLabel(`峰 ${fmtMultiple(peak.normalized)}`, pos.x, pos.y - 22, cycle.color, pos.x > bounds.width - 160 ? "right" : "left");
+    drawLabel(markerLabel("峰", peak, cycle), pos.x, pos.y + labelOffset(cycle, "peak"), cycle.color, pos.x > bounds.width - 180 ? "right" : "left");
   }
   if (trough.days >= d.xMin && trough.days <= d.xMax && trough.normalized) {
     const pos = project(trough, bounds, d, cycle);
     drawDiamond(pos.x, pos.y, cycle.id === "cycle_2024" ? 9 : 8, "#f43f5e");
-    const status = cycle.summary.troughStatus ? ` ${cycle.summary.troughStatus}` : "";
-    drawLabel(`低 ${fmtMultiple(trough.normalized)}${status}`, pos.x, pos.y + 22, "#f43f5e", pos.x > bounds.width - 160 ? "right" : "left");
+    drawLabel(markerLabel("低", trough, cycle), pos.x, pos.y + labelOffset(cycle, "trough"), "#f43f5e", pos.x > bounds.width - 180 ? "right" : "left");
   }
 }
 
@@ -318,9 +333,11 @@ function drawPointer(bounds, d) {
   const lines = info.rows
     .map(
       ({ cycle, point }) =>
-        `<div><span style="color:${cycle.color}">●</span> ${cycle.name}: ${fmtMultiple(
-          point.normalized
-        )} · ${fmtMoney(point.price)} · ${point.date}</div>`
+        `<div><span style="color:${cycle.color}">●</span> ${cycle.name}: ${
+          state.scale === "relative"
+            ? `${Math.round(displayValue(point, cycle) * 100)}% (${fmtMultiple(point.normalized)})`
+            : fmtMultiple(point.normalized)
+        } · ${fmtMoney(point.price)} · ${point.date}</div>`
     )
     .join("");
   els.tooltip.innerHTML = `<strong>减半后第 ${info.day} 天</strong>${lines}`;
