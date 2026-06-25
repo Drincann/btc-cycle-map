@@ -13,10 +13,13 @@
           <p class="eyebrow">BTC halving cycle map</p>
           <h1>BTC 周期同坐标对比</h1>
         </div>
-        <div class="controls" aria-label="图表控制">
-          <button class="seg active" data-scale="log" type="button">对数</button>
-          <button class="seg" data-scale="linear" type="button">普通</button>
-          <button class="seg" data-scale="relative" type="button">相同比例</button>
+        <div class="scale-control controls" aria-label="坐标模式">
+          <span class="control-label">坐标</span>
+          <div class="seg-group">
+            <button class="seg" data-scale="linear" type="button">线性</button>
+            <button class="seg active" data-scale="log" type="button">对数</button>
+            <button class="seg" data-scale="relative" type="button">比例</button>
+          </div>
         </div>
       </header>
 

@@ -41,7 +41,7 @@ function maxFullDays() {
 }
 
 function chartBounds() {
-  const pad = { left: 72, right: 26, top: 28, bottom: 54 };
+  const pad = { left: 72, right: 26, top: 58, bottom: 54 };
   const w = els.chart.clientWidth;
   const h = els.chart.clientHeight;
   return {
@@ -70,10 +70,15 @@ function domain() {
       if (point.days <= xMax) values.push(displayValue(point, cycle));
     }
   }
-  const maxV = Math.max(2, ...values);
-  const minV = Math.min(1, ...values);
-  const yMin = state.scale === "relative" ? 0 : state.scale === "log" ? Math.max(0.3, minV * 0.85) : 0;
-  const yMax = state.scale === "relative" ? 1.1 : maxV * 1.12;
+  const maxV = Math.max(state.scale === "relative" ? 1 : 2, ...values);
+  const minV = Math.min(state.scale === "relative" ? 0 : 1, ...values);
+  const yMin =
+    state.scale === "relative"
+      ? Math.min(0, minV * 1.12)
+      : state.scale === "log"
+      ? Math.max(0.3, minV * 0.85)
+      : 0;
+  const yMax = state.scale === "relative" ? Math.max(1.1, maxV * 1.08) : maxV * 1.12;
   return {
     xMin: 0,
     xMax,
@@ -84,7 +89,8 @@ function domain() {
 
 function displayValue(point, cycle) {
   if (state.scale !== "relative") return point.normalized;
-  return point.normalized / Math.max(0.0001, cycle.summary.peakNormalized || 1);
+  const peakGain = Math.max(0.0001, (cycle.summary.peakNormalized || 1) - 1);
+  return (point.normalized - 1) / peakGain;
 }
 
 function project(point, bounds, d, cycle = null) {
@@ -158,7 +164,7 @@ function drawBackground(bounds, d) {
     if (x2 - x1 > 70) {
       ctx.fillStyle = "rgba(238, 244, 248, 0.62)";
       ctx.font = "12px Inter, system-ui, sans-serif";
-      ctx.fillText(phase.label, x1 + 10, bounds.top + bounds.plotH - 12);
+      ctx.fillText(phase.label, x1 + 10, bounds.top - 18);
     }
   }
 }
@@ -183,7 +189,7 @@ function drawGrid(bounds, d) {
 
   const yTicks =
     state.scale === "relative"
-      ? [0.1, 0.2, 0.3, 0.5, 0.8, 1]
+      ? [-0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
       : state.scale === "log"
       ? [0.5, 1, 2, 3, 5, 10, 20, 30]
       : [0, 1, 2, 3, 4, 5, 8, 12, 16, 20];
@@ -430,6 +436,8 @@ const CURRENT_CYCLE = {
 };
 
 const LOW_CONFIRM_DAYS = 140;
+const CURRENT_CACHE_KEY = "btc-cycle-map-current-v1";
+const CURRENT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 function dateToMs(date) {
   return new Date(`${date}T00:00:00Z`).getTime();
@@ -535,13 +543,22 @@ function validateCurrentRows(rows) {
   return rows;
 }
 
-function readCachedCurrent() {
+function readCachedCurrent({ allowStale = false } = {}) {
   try {
-    const raw = window.localStorage.getItem("btc-cycle-map-current-v1");
+    const raw = window.localStorage.getItem(CURRENT_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed.rows) || !parsed.provider) return null;
-    return { rows: validateCurrentRows(parsed.rows), provider: parsed.provider, cached: true };
+    const savedAt = Number(parsed.savedAt) || 0;
+    const stale = Date.now() - savedAt > CURRENT_CACHE_TTL_MS;
+    if (stale && !allowStale) return null;
+    return {
+      rows: validateCurrentRows(parsed.rows),
+      provider: parsed.provider,
+      cached: true,
+      stale,
+      savedAt,
+    };
   } catch {
     return null;
   }
@@ -549,10 +566,7 @@ function readCachedCurrent() {
 
 function writeCachedCurrent(provider, rows) {
   try {
-    window.localStorage.setItem(
-      "btc-cycle-map-current-v1",
-      JSON.stringify({ savedAt: Date.now(), provider, rows })
-    );
+    window.localStorage.setItem(CURRENT_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), provider, rows }));
   } catch {
     // Best effort only.
   }
@@ -560,6 +574,8 @@ function writeCachedCurrent(provider, rows) {
 
 async function fetchCurrentRows() {
   const cached = readCachedCurrent();
+  if (cached) return cached;
+  const staleCache = readCachedCurrent({ allowStale: true });
   const providers = [
     { name: "Binance", load: fetchBinanceCurrent },
     { name: "CryptoCompare", load: fetchCryptoCompareCurrent },
@@ -579,7 +595,7 @@ async function fetchCurrentRows() {
       controller.abort();
     }
   }
-  if (cached) return { ...cached, errors };
+  if (staleCache) return { ...staleCache, errors };
   throw new Error(errors.join("；") || "所有动态行情源不可用");
 }
 
@@ -692,7 +708,9 @@ async function init() {
   const cycles = [...historical.cycles, buildCurrentCycle(current.rows)];
   state.data = {
     symbol: "BTC-USD",
-    source: `Historical static (${historical.source || "static"}) + current ${current.provider}${current.cached ? " cache" : ""}`,
+    source: `Historical static (${historical.source || "static"}) + current ${current.provider}${
+      current.cached ? (current.stale ? " stale cache" : " cache") : ""
+    }`,
     updatedAt: new Date().toISOString(),
     cycles,
     providerErrors: current.errors,
