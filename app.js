@@ -133,7 +133,7 @@ function labelOffset(cycle, kind) {
   const index = state.data.cycles.findIndex((item) => item.id === cycle.id);
   if (state.scale !== "relative") return kind === "peak" ? -22 : 22;
   if (kind === "peak") return [-44, -22, 0][Math.max(0, index)] ?? -22;
-  return [36, 18, 54][Math.max(0, index)] ?? 30;
+  return [34, -18, 58][Math.max(0, index)] ?? 30;
 }
 
 function resizeCanvas() {
@@ -223,10 +223,13 @@ function drawStar(x, y, outer, inner, color) {
     else ctx.lineTo(px, py);
   }
   ctx.closePath();
-  ctx.fillStyle = color;
+  ctx.fillStyle = "#fde047";
   ctx.fill();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
   ctx.strokeStyle = "#101720";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 1;
   ctx.stroke();
 }
 
@@ -249,7 +252,7 @@ function drawLabel(text, x, y, color, align = "left") {
   const width = ctx.measureText(text).width + 12;
   const height = 22;
   const left = align === "right" ? x - width - 10 : x + 10;
-  const top = Math.max(8, y - height / 2);
+  const top = Math.max(8, Math.min(els.chart.clientHeight - height - 8, y - height / 2));
   ctx.fillStyle = "rgba(9, 13, 18, 0.86)";
   ctx.strokeStyle = color;
   ctx.lineWidth = 1;
@@ -281,7 +284,9 @@ function drawLine(cycle, bounds, d) {
   if (points.length < 2) return;
 
   ctx.strokeStyle = cycle.color;
-  ctx.lineWidth = cycle.id === "cycle_2024" ? 3 : 2;
+  ctx.lineWidth = cycle.id === "cycle_2024" ? 2.25 : 2;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
   ctx.globalAlpha = cycle.id === "cycle_2024" ? 1 : 0.82;
   ctx.beginPath();
   points.forEach((point, idx) => {
@@ -677,8 +682,8 @@ function buildPhaseModel(cycles) {
   const phases = [
     ["post_halving", "减半后消化", 0, earlyEnd, "#164e63"],
     ["trend_expansion", "趋势扩张", earlyEnd, peakStart, "#14532d"],
-    ["top_window", "历史顶部窗口", peakStart, peakEnd, "#7c2d12"],
-    ["bear_drawdown", "熊市回撤", peakEnd, troughEnd, "#7f1d1d"],
+    ["top_window", "历史顶部窗口", peakStart, peakEnd, "#92400e"],
+    ["bear_drawdown", "熊市回撤", peakEnd, troughEnd, "#881337"],
     ["recovery", "修复/下一轮预热", troughEnd, fullDay, "#312e81"],
   ]
     .filter(([, , start, end]) => end > start)
